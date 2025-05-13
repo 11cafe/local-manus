@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional
 import aiosqlite
 
 USER_DATA_DIR = os.getenv("USER_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "user_data"))
-DB_PATH = os.path.join(USER_DATA_DIR, "chat_history.db")
+DB_PATH = os.path.join(USER_DATA_DIR, "localmanus.db")
 
 # Database version
 CURRENT_VERSION = 1
@@ -47,9 +47,9 @@ class DatabaseService:
         """Create the initial database schema"""
         conn.execute("""
             CREATE TABLE IF NOT EXISTS chat_sessions (
-                session_id TEXT PRIMARY KEY,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                id TEXT PRIMARY KEY,
+                created_at TEXT DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at TEXT DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')),
                 title TEXT,
                 model TEXT,
                 provider TEXT
@@ -57,17 +57,24 @@ class DatabaseService:
         """)
 
         conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_chat_sessions_updated_at ON chat_sessions(updated_at DESC, id DESC)
+        """)
+
+        conn.execute("""
             CREATE TABLE IF NOT EXISTS chat_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT,
                 role TEXT,
-                content TEXT,
-                tool_calls TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (session_id) REFERENCES chat_sessions(session_id)
+                message TEXT,
+                created_at TEXT DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                updated_at TEXT DEFAULT (STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
             )
         """)
 
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id_id ON chat_messages(session_id, id);
+        """)
     def _migrate_db(self, conn: sqlite3.Connection, from_version: int, to_version: int):
         """Handle database migrations"""
         # Add migration logic here when needed
@@ -78,23 +85,22 @@ class DatabaseService:
         # Update version
         conn.execute("UPDATE db_version SET version = ?", (to_version,))
 
-    async def save_chat_session(self, session_id: str, model: str, provider: str, title: Optional[str] = None):
+    async def create_chat_session(self, id: str, model: str, provider: str, title: Optional[str] = None):
         """Save a new chat session"""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""
-                INSERT OR REPLACE INTO chat_sessions (session_id, model, provider, title, updated_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            """, (session_id, model, provider, title))
+                INSERT INTO chat_sessions (id, model, provider, title)
+                VALUES (?, ?, ?, ?)
+            """, (id, model, provider, title))
             await db.commit()
 
-    async def save_message(self, session_id: str, role: str, content: str, tool_calls: Optional[List[Dict[str, Any]]] = None):
+    async def create_message(self, session_id: str, role: str, message: str):
         """Save a chat message"""
         async with aiosqlite.connect(self.db_path) as db:
-            tool_calls_json = json.dumps(tool_calls) if tool_calls else None
             await db.execute("""
-                INSERT INTO chat_messages (session_id, role, content, tool_calls)
-                VALUES (?, ?, ?, ?)
-            """, (session_id, role, content, tool_calls_json))
+                INSERT INTO chat_messages (session_id, role, message)
+                VALUES (?, ?, ?)
+            """, (session_id, role, message))
             await db.commit()
 
     async def get_chat_history(self, session_id: str) -> List[Dict[str, Any]]:
@@ -102,19 +108,23 @@ class DatabaseService:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = sqlite3.Row
             cursor = await db.execute("""
-                SELECT role, content, tool_calls, created_at
+                SELECT role, message, id
                 FROM chat_messages
                 WHERE session_id = ?
-                ORDER BY created_at ASC
+                ORDER BY id ASC
             """, (session_id,))
             rows = await cursor.fetchall()
             
             messages = []
             for row in rows:
-                message = dict(row)
-                if message['tool_calls']:
-                    message['tool_calls'] = json.loads(message['tool_calls'])
-                messages.append(message)
+                row_dict = dict(row)
+                if row_dict['message']:
+                    try:
+                        msg = json.loads(row_dict['message'])
+                        messages.append(msg)
+                    except:
+                        pass
+                
             return messages
 
     async def list_sessions(self) -> List[Dict[str, Any]]:
@@ -122,7 +132,7 @@ class DatabaseService:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = sqlite3.Row
             cursor = await db.execute("""
-                SELECT session_id, title, model, provider, created_at, updated_at
+                SELECT id, title, model, provider, created_at, updated_at
                 FROM chat_sessions
                 ORDER BY updated_at DESC
             """)

@@ -212,7 +212,7 @@ const ChatInterface = ({
     };
   }, []);
   const onSendPrompt = () => {
-    if (agentState == EAgentState.RUNNING) {
+    if (pending) {
       return;
     }
     if (!model) {
@@ -225,16 +225,14 @@ const ChatInterface = ({
       toast.error("Please set the model URL in Settings");
       return;
     }
+    if (!prompt || prompt == "") {
+      return;
+    }
 
     const newMessages = messages.concat([
       {
         role: "user",
-        content: [
-          {
-            type: "text",
-            text: prompt,
-          },
-        ],
+        content: prompt,
       },
     ]);
     setMessages(newMessages);
@@ -294,7 +292,13 @@ const ChatInterface = ({
               {/* Regular message content */}
               {typeof message.content == "string" &&
                 message.role !== "tool" && (
-                  <div>
+                  <div
+                    className={`${
+                      message.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-2xl p-3 text-left ml-auto"
+                        : "text-gray-800 dark:text-gray-200 text-left items-start"
+                    } space-y-3 flex flex-col w-fit`}
+                  >
                     <Markdown>{message.content}</Markdown>
                   </div>
                 )}
@@ -313,10 +317,8 @@ const ChatInterface = ({
                         key={i}
                         className={`${
                           message.role === "user"
-                            ? "bg-primary text-primary-foreground rounded-2xl p-3 text-left"
-                            : "text-gray-800 dark:text-gray-200 text-left"
-                        } ${
-                          message.role === "user" ? "ml-auto" : "items-start"
+                            ? "bg-primary text-primary-foreground rounded-2xl p-3 text-left ml-auto"
+                            : "text-gray-800 dark:text-gray-200 text-left items-start"
                         } space-y-3 flex flex-col w-fit`}
                       >
                         <Markdown>{content.text}</Markdown>
@@ -332,6 +334,7 @@ const ChatInterface = ({
                 })}
               {message.role === "assistant" &&
                 message.tool_calls &&
+                message.tool_calls.at(-1)?.function.name != "finish" &&
                 message.tool_calls.map((toolCall, i) => {
                   return (
                     <ToolCallTag

@@ -10,14 +10,12 @@ from fastapi import APIRouter, Request, WebSocket, Query, HTTPException
 from fastapi.responses import FileResponse
 import asyncio
 import aiohttp
-from openai import AsyncOpenAI, OpenAI
 import requests
 from localmanus.services.agent_service import openai_client, anthropic_client, ollama_client
 from localmanus.services.mcp import MCPClient
-from itertools import chain
 from localmanus.services.config_service import config_service, app_config
 from starlette.websockets import WebSocketDisconnect
-from ollama import ChatResponse
+from localmanus.services.db_service import db_service
 
 llm_config = config_service.get_config()
 
@@ -161,14 +159,17 @@ async def chat_openai(messages: list, session_id: str, model: str, provider: str
             print('👇combine', combine)
             print('👇content_combine', content_combine)
             if content_combine != '':
-                messages.append({
+                msg = {
                     'role': 'assistant',
                     'content': [{
                         'type': 'text',
                         'text': content_combine
                     }]
-                })
+                }
+                messages.append(msg)
+                await db_service.create_message(session_id, 'assistant', json.dumps(msg))
             else:
+                # empty assistant message, we think it's finished
                 messages.append({
                     'role': 'assistant',
                     'tool_calls': [{
@@ -184,27 +185,19 @@ async def chat_openai(messages: list, session_id: str, model: str, provider: str
                 for tool_call in cur_tool_calls:
                     # append tool call to messages of assistant
                     print('🕹️tool_call', tool_call)
-                    if messages[-1].get('tool_calls') is not None:
-                        messages[-1]['tool_calls'].append({
-                            'type': 'function',
-                            'id': tool_call.id,
-                            'function': {
-                                'name': tool_call.name,
-                                'arguments': tool_call.arguments if tool_call.arguments else '{}'
+                    msg = {
+                        'role': 'assistant',
+                        'tool_calls': [{
+                        'type': 'function',
+                        'id': tool_call.id,
+                        'function': {
+                            'name': tool_call.name,
+                            'arguments': tool_call.arguments if tool_call.arguments else '{}'
                             }
-                        })
-                    else:
-                        messages.append({
-                            'role': 'assistant',
-                            'tool_calls': [{
-                            'type': 'function',
-                            'id': tool_call.id,
-                            'function': {
-                                'name': tool_call.name,
-                                'arguments': tool_call.arguments if tool_call.arguments else '{}'
-                                }
-                            }]
-                        })
+                        }]
+                    }
+                    messages.append(msg)
+                    await db_service.create_message(session_id, 'assistant', json.dumps(msg))
                     # tool call args complete, execute tool call
                     tool_result = await execute_tool(tool_call.id, tool_call.name, tool_call.arguments, session_id)
                     # append tool call result to messages of user
@@ -346,6 +339,10 @@ async def chat(request: Request):
             status_code=400,  # Bad Request
             detail="session_id is required"
         )
+    if len(messages) == 1:
+        # create new session
+        prompt = messages[0].get('content', '')
+        await db_service.create_chat_session(session_id, model, provider, prompt if isinstance(prompt, str) else '')
     # Create and store the chat task
     async def chat_loop():
         cur_messages = messages
@@ -455,6 +452,14 @@ USER_DATA_DIR = os.getenv("USER_DATA_DIR", os.path.join(os.path.dirname(os.path.
 mcp_clients: dict[str, MCPClient] = {}
 mcp_clients_status = {}
 mcp_tool_to_server_mapping: dict[str, MCPClient] = {}
+
+async def initialize():
+    await initialize_mcp()
+    for session_id in active_websockets:
+        await send_to_websocket(session_id, {
+            'type': 'init_done'
+        })
+
 async def initialize_mcp():
     print('👇initializing mcp')
     mcp_config_path = os.path.join(USER_DATA_DIR, "mcp.json")
@@ -528,3 +533,12 @@ async def list_mcp_servers():
         mcp_servers[server_name]['tools'] = mcp_clients_status[server_name].get('tools', [])
         mcp_servers[server_name]['status'] = mcp_clients_status[server_name].get('status', 'error')
     return mcp_servers
+
+@router.get("/list_chat_sessions")
+async def list_chat_sessions():
+    return await db_service.list_sessions()
+
+@router.get("/get_chat_history")
+async def get_chat_history(session_id: str):
+    return await db_service.get_chat_history(session_id)
+

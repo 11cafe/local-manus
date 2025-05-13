@@ -25,6 +25,14 @@ type UserMessage = {
 };
 export type Message = UserMessage | AssistantMessage | ToolResultMessage;
 
+export interface ChatSession {
+  id: string;
+  model: string;
+  provider: string;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+}
 export interface MessageGroup {
   id: number;
   role: string;

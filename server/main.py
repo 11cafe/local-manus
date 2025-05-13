@@ -3,20 +3,9 @@ import os
 import sys
 import argparse
 from contextlib import asynccontextmanager
+from localmanus.services.db_service import DatabaseService
 
-if getattr(sys, 'frozen', False):
-    # If running in a PyInstaller bundle, __file__ will point inside the bundle,
-    # so you have to handle that carefully. Typically you use sys._MEIPASS
-    # to find the "extracted" folder. For example:
-    root_dir = os.path.join(sys._MEIPASS)
-else:
-    root_dir = os.path.dirname(__file__)
-
-sys.path.append(root_dir)  # Add the server directory to Python path
-
-# Add the openmanus directory to Python path
-openmanus_dir = os.path.join(root_dir, "openmanus")
-sys.path.append(openmanus_dir)
+root_dir = os.path.dirname(__file__)
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -27,7 +16,7 @@ from localmanus.routers import config, agent
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # onstartup
-    await agent.initialize_mcp()
+    await agent.initialize()
     yield
     # onshutdown
 

@@ -11,3 +11,6 @@ build
 
 # User data
 user_data/
+
+react/pnpm-lock.yaml
+react/yarn-lock.yaml

@@ -98,7 +98,7 @@ AI 还可以让你在提交回复前进行确认：
 ```bash
 cd react && npm i
 cd react && npm run dev
-cd server && python main.py
+cd server && uvicorn main:app --host "0.0.0.0" --reload
 ```
 
 ---

@@ -1,0 +1,46 @@
+.ai-suggestion-wrapper {
+    position: relative;
+    background: #fff3cd; /* light yellow */
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+  
+  .ai-suggestion-wrapper .original {
+    background: #fa14fa;
+  }
+  .ai-suggestion-wrapper .suggested,
+  .ai-suggestion-wrapper .buttons {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    margin-left: 8px;
+    white-space: nowrap;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 2px 4px;
+    border-radius: 4px;
+    z-index: 1000;
+  }
+  
+  .ai-suggestion-wrapper:hover .suggested,
+  .ai-suggestion-wrapper:hover .buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .ai-suggestion-wrapper .buttons button {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-weight: bold;
+  }
+  
+  .ai-suggestion-wrapper .buttons .approve {
+    color: green;
+  }
+  .ai-suggestion-wrapper .buttons .reject {
+    color: red;
+  }
+  

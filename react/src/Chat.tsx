@@ -46,11 +46,13 @@ const ChatInterface = ({
   onClickNewChat,
   editorContent,
   editorTitle,
+  setAISuggestion,
 }: {
   sessionId: string;
   editorTitle: string;
   editorContent: string;
   onClickNewChat: () => void;
+  setAISuggestion: (suggestion: string | null) => void;
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [prompt, setPrompt] = useState("");
@@ -121,10 +123,10 @@ const ChatInterface = ({
     });
 
     socket.addEventListener("message", (event) => {
-      // const data = JSON.parse(event.data);
-      console.log(event.data);
+      console.log("📨 WebSocket message received:", event.data);
       try {
         const data = JSON.parse(event.data);
+        console.log("📦 Parsed WebSocket data:", data);
         if (data.type == "log") {
           console.log(data);
         }
@@ -147,6 +149,7 @@ const ChatInterface = ({
         } else {
           setMessages((prev) => {
             if (data.type == "delta") {
+              console.log("📝 Delta message:", data);
               if (prev.at(-1)?.role == "assistant") {
                 const lastMessage = structuredClone(prev.at(-1));
                 if (lastMessage) {
@@ -206,6 +209,10 @@ const ChatInterface = ({
                   text: string;
                 }[];
               } = data;
+              console.log("res.content", res.content);
+              const resultText = res.content.map((c) => c.text).join("\n");
+              setAISuggestion(resultText);
+              console.log("resultText:", resultText);
             } else if (data.type == "all_messages") {
               console.log("👇all_messages", data.messages);
               return data.messages;
@@ -236,16 +243,16 @@ const ChatInterface = ({
     if (pending) {
       return;
     }
-    if (!model) {
-      toast.error(
-        "Please select a model! Go to Settings to set your API keys if you haven't done so."
-      );
-      return;
-    }
-    if (!model.url || model.url == "") {
-      toast.error("Please set the model URL in Settings");
-      return;
-    }
+    // if (!model) {
+    //   toast.error(
+    //     "Please select a model! Go to Settings to set your API keys if you haven't done so."
+    //   );
+    //   return;
+    // }
+    // if (!model.url || model.url == "") {
+    //   toast.error("Please set the model URL in Settings");
+    //   return;
+    // }
     if (!promptStr || promptStr == "") {
       return;
     }
@@ -253,7 +260,19 @@ const ChatInterface = ({
     const newMessages = messages.concat([
       {
         role: "user",
-        content: promptStr + "\n\n # " + editorTitle + "\n\n" + editorContent,
+        //old
+        //content: promptStr + "\n\n # " + editorTitle + "\n\n" + editorContent,
+        //new
+        content: `Please provide inline text suggestions by replacing words or phrases.
+Use the format:
+(original text) [suggested text]
+Only wrap specific phrases you want to revise.
+---
+
+Content:
+${editorContent}
+
+---`,
       },
     ]);
     setMessages(newMessages);
@@ -267,9 +286,9 @@ const ChatInterface = ({
       body: JSON.stringify({
         messages: newMessages,
         session_id: sessionIdRef.current,
-        model: model.model,
-        provider: model.provider,
-        url: model.url,
+        // model: model.model,
+        // provider: model.provider,
+        // url: model.url,
       }),
     }).then((resp) => resp.json());
   };

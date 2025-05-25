@@ -31,6 +31,7 @@ import { nanoid } from "nanoid";
 import PostEditor from "./PostEditor";
 
 function Home() {
+  const [AISuggestion, setAISuggestion] = useState<string|null>(null);
   const [agentState, setAgentState] = useState(EAgentState.IDLE);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
@@ -86,7 +87,18 @@ function Home() {
         </div>
       )}
       <div className="w-[60%] h-screen px-5">
-        {!!curPath && <PostEditor curPath={curPath} setCurPath={setCurPath} />}
+        {!!curPath && (
+          <PostEditor 
+            curPath={curPath} 
+            setCurPath={setCurPath} 
+            AISuggestion={AISuggestion} 
+            setAISuggestion={setAISuggestion}
+            editorContent={editorContent}
+            setEditorContent={setEditorContent}
+            editorTitle={editorTitle}
+            setEditorTitle={setEditorTitle}
+          />
+        )}
       </div>
       <div className="flex-1 flex-grow relative px-4  bg-sidebar">
         <ChatInterface
@@ -96,6 +108,7 @@ function Home() {
           onClickNewChat={() => {
             setSessionId(nanoid());
           }}
+          setAISuggestion={setAISuggestion}
         />
 
         {/* <div className="absolute top-5 right-8 flex gap-1">

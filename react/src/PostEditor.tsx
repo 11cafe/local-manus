@@ -47,7 +47,8 @@ import { Textarea } from "./components/ui/textarea";
 import { PLATFORMS_CONFIG } from "./platformsConfig";
 import { useTheme } from "@/components/theme-provider";
 import { toast } from "sonner";
-
+import styles from "./PostEditor.module.css";
+console.log("🔄 styles:", styles);
 type MediaFile = {
   path: string;
   type: "image" | "video";
@@ -73,14 +74,100 @@ function useDebounce<T extends (...args: any[]) => any>(
     [callback, delay]
   );
 }
+function getHTMLVersion(id: string, original: string, suggested: string): string {
+  return `<span class="${styles['ai-suggestion-wrapper']}" data-id="${id}">
+  <span class="${styles['original']}">~~${original}~~</span>
+  <span class="${styles['suggested']}">${suggested}</span>
+  <span class="${styles['buttons']}">
+    <button class="${styles['approve']}">✓</button>
+    <button class="${styles['reject']}">✗</button>
+  </span>
+</span>`;
+}
 
-export default function PostEditor({
-  curPath,
-  setCurPath,
-}: {
+const INLINE_SUGGESTION_REGEX = /\(([^)]+)\)\s*\[([^\]]+)\]/g;
+
+
+type InlineSuggestion = {
+  id: string;
+  original: string;
+  suggested: string;
+  index: number;
+}
+function extractInlineSuggestions(text: string, setInlineSuggestions: (suggestions: InlineSuggestion[]) => void): string {
+  const suggestions: InlineSuggestion[] = [];
+  let match;
+  let result  = "";
+  let lastIndex = 0;  
+  while ((match = INLINE_SUGGESTION_REGEX.exec(text)) !== null) {
+    const [_, original, suggested] = match;
+    const start = match.index;
+    const id = crypto.randomUUID();
+    result += text.slice(lastIndex, start) + getHTMLVersion(id, original, suggested);
+    lastIndex = start + match[0].length;
+    suggestions.push({
+      id,
+      original,
+      suggested,
+      index: start,
+    });
+  }
+  result += text.slice(lastIndex);
+  setInlineSuggestions(suggestions);
+  return result;
+}
+
+function convertInlineSuggestionsToTags(
+  text: string,
+  suggestions: InlineSuggestion[]
+): string {
+  let offset = 0;
+  let result = text;
+  for(const {id, original, suggested, index} of suggestions){
+    const matchLength = `(${original})[${suggested}]`.length;
+
+    const replacement = `<AISuggestion id="${id}" original="${original}" suggestion="${suggested}" />`
+    result = result.slice(0, index + offset) + replacement + result.slice(index + offset + matchLength);
+    offset += replacement.length - matchLength;
+  }
+  return result;
+
+}
+function renderAISuggestions(content: string): string {
+  return content.replace(
+    /<AISuggestion id="([^"]+)" original="([^"]+)" suggestion="([^"]+)" \/>/g,
+    (_, id, original, suggestion) => 
+      `~~${original}~~ <strong data-suggestion-id="${id}">${suggestion}</strong>`
+  );
+}
+
+// export default function PostEditor({
+//   curPath,
+//   setCurPath,
+// }: {
+//   curPath: string;
+//   setCurPath: (path: string) => void;
+// })
+type PostEditorProps = {
   curPath: string;
   setCurPath: (path: string) => void;
-}) {
+  AISuggestion: string | null;
+  setAISuggestion: (suggestion: string | null) => void;
+  editorContent: string;
+  setEditorContent: (content: string) => void;
+  editorTitle: string;
+  setEditorTitle: (title: string) => void;
+}
+export default function PostEditor({ 
+  curPath, 
+  setCurPath, 
+  AISuggestion, 
+  setAISuggestion,
+  editorContent,
+  setEditorContent,
+  editorTitle,
+  setEditorTitle
+}: PostEditorProps){
   const HEADER_HEIGHT = 50;
   const { theme } = useTheme();
   const [isTextSelected, setIsTextSelected] = useState(false);
@@ -90,11 +177,11 @@ export default function PostEditor({
   } | null>(null);
   const [isPostMode, setIsPostMode] = useState(false);
   const mdxEditorRef = useRef<MDXEditorMethods>(null);
-  const [editorTitle, setEditorTitle] = useState("");
-  const [editorContent, setEditorContent] = useState("");
+  // const [editorTitle, setEditorTitle] = useState("");
+  // const [editorContent, setEditorContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-
+  const [inlineSuggestions, setInlineSuggestions] = useState<InlineSuggestion[]>([]);
   useEffect(() => {
     setIsLoading(true);
     fetch("/api/read_file", {
@@ -114,6 +201,17 @@ export default function PostEditor({
         }
       });
   }, [curPath]);
+
+  useEffect(() => {
+    if (AISuggestion) {
+      console.log("🎯 PostEditor received AISuggestion:", AISuggestion);
+      const result = extractInlineSuggestions(AISuggestion, setInlineSuggestions);
+      setEditorContentWrapper(result);
+      console.log("📝 After the extraction function:", result);
+      setAISuggestion(null);
+    }
+  }, [AISuggestion]);
+
 
   const renameFile = useCallback(
     (title: string) => {
@@ -372,6 +470,7 @@ export default function PostEditor({
           />
         ) : (
           <MDXEditor
+            key={editorContent}
             ref={mdxEditorRef}
             className={theme == "dark" ? `dark-theme` : ""}
             plugins={[

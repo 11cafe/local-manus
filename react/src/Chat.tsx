@@ -46,12 +46,15 @@ const ChatInterface = ({
   onClickNewChat,
   editorContent,
   editorTitle,
+  setEditorContentWrapper,
 }: {
   sessionId: string;
   editorTitle: string;
   editorContent: string;
   onClickNewChat: () => void;
+  setEditorContentWrapper: (value: string) => void;
 }) => {
+  const [buttonClicked, setButtonClicked] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [prompt, setPrompt] = useState("");
   const [disableStop, setDisableStop] = useState(false);
@@ -125,6 +128,7 @@ const ChatInterface = ({
       console.log(event.data);
       try {
         const data = JSON.parse(event.data);
+        console.log("👇data", data);
         if (data.type == "log") {
           console.log(data);
         }
@@ -139,6 +143,7 @@ const ChatInterface = ({
           });
         } else if (data.type == "done") {
           setPending(false);
+          setButtonClicked(false);
         } else if (data.type == "info") {
           toast.info(data.info, {
             closeButton: true,
@@ -236,16 +241,20 @@ const ChatInterface = ({
     if (pending) {
       return;
     }
-    if (!model) {
-      toast.error(
-        "Please select a model! Go to Settings to set your API keys if you haven't done so."
-      );
+    if (!buttonClicked) {
+      toast.error("Please approve/decline the previous AI suggestion first.");
       return;
     }
-    if (!model.url || model.url == "") {
-      toast.error("Please set the model URL in Settings");
-      return;
-    }
+    // if (!model) {
+    //   toast.error(
+    //     "Please select a model! Go to Settings to set your API keys if you haven't done so."
+    //   );
+    //   return;
+    // }
+    // if (!model.url || model.url == "") {
+    //   toast.error("Please set the model URL in Settings");
+    //   return;
+    // }
     if (!promptStr || promptStr == "") {
       return;
     }
@@ -253,7 +262,12 @@ const ChatInterface = ({
     const newMessages = messages.concat([
       {
         role: "user",
-        content: promptStr + "\n\n # " + editorTitle + "\n\n" + editorContent,
+        //content: promptStr + "\n\n # " + editorTitle + "\n\n" + editorContent,
+        content: 
+          "Based on the following prompt, generate a revised version of the editorContent: \n\n" + 
+          "Prompt: " + promptStr + "\n\n" +
+          "Original editorContent: " + editorContent + "\n\n" +
+          "Please respond **only** with the updated version of the editorContent. Do not include any explanations, comments, or extra text.",
       },
     ]);
     setMessages(newMessages);
@@ -267,9 +281,9 @@ const ChatInterface = ({
       body: JSON.stringify({
         messages: newMessages,
         session_id: sessionIdRef.current,
-        model: model.model,
-        provider: model.provider,
-        url: model.url,
+        // model: model.model,
+        // provider: model.provider,
+        // url: model.url,
       }),
     }).then((resp) => resp.json());
   };
@@ -411,8 +425,59 @@ const ChatInterface = ({
           {/* Messages */}
           {messages.map((message, idx) => (
             <div key={`${idx}`}>
-              {/* Regular message content */}
-              {typeof message.content == "string" &&
+              {/* User message */}
+              {typeof message.content == "string" &&message.role === "user" && (
+                <div 
+                  className={`${"bg-primary text-primary-foreground rounded-2xl p-3 text-left ml-auto"
+                } space-y-3 flex flex-col w-fit`}>
+                  <Markdown>{message.content}</Markdown>
+                </div>
+              )}
+              {/* Assistant message */}
+              { typeof message.content == "string" && message.role === "assistant" && (
+                    <div
+                    className={`group relative transition duration-200 ${
+                      !pending && messages.at(-1) === message
+                        ? "hover:bg-indigo-100"
+                        : ""
+                    } bg-indigo-50 text-indigo-900 border-l-4 border-indigo-300 p-4 rounded-md text-left space-y-3 flex flex-col w-fit`}
+                  >
+                    {/* Message body */}
+                    <Markdown>{message.content}</Markdown>
+              
+                    {/* Buttons appear only on hover, after response is done */}
+                    {!pending && messages.at(-1) === message && (
+                      <div className={`opacity-0 ${buttonClicked ? "" : "group-hover:opacity-100"}
+                        transition-opacity duration-200 flex justify-end space-x-3 pt-2`}>
+                        <button
+                          className="text-lg hover:scale-110 transition"
+                          title="Accept"
+                          onClick={() => {
+                            setButtonClicked(true);
+                            if (typeof message.content === "string") {              
+                              setEditorContentWrapper(message.content);
+                              toast.success("Response replaced editorContent.");
+                            }
+                          }}
+                        >
+                          ✅
+                        </button>
+                        <button
+                          className="text-lg hover:scale-110 transition"
+                          title="Reject"
+                          onClick={() => {
+                            setButtonClicked(true);
+                            toast("Response rejected.");
+                          }}
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              
+              {/* {typeof message.content == "string" &&
                 message.role !== "tool" && (
                   <div
                     className={`${
@@ -423,7 +488,8 @@ const ChatInterface = ({
                   >
                     <Markdown>{message.content}</Markdown>
                   </div>
-                )}
+                )} */}
+
               {typeof message.content == "string" &&
                 message.role == "tool" &&
                 expandingToolCalls.includes(message.tool_call_id) && (
@@ -498,7 +564,8 @@ const ChatInterface = ({
           <div className="flex flex-grow w-full items-end space-x-2">
             <Textarea
               className="flex flex-1 flex-grow resize-none"
-              placeholder="您想根据当前文章问什么？"
+              //placeholder="您想根据当前文章问什么？"
+              placeholder="How do you want to improve the editorContent?"
               value={prompt}
               onChange={(e) => {
                 setPrompt(e.target.value);

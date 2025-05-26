@@ -315,72 +315,96 @@ async def execute_tool(tool_call_id: str, tool_name: str, args_str: str, session
 router = APIRouter(prefix="/api")
 @router.post("/chat")
 async def chat(request: Request):
-    data = await request.json()
-    messages = data.get('messages')
-    session_id = data.get('session_id')
-    provider = data.get('provider')
-    url = data.get('url')
-    if provider == 'ollama' and not url.endswith('/v1'):
-        # openai compatible url
-        url = url.rstrip("/") + "/v1"
-    model = data.get('model')
-    if model is None:
-        raise HTTPException(
-            status_code=400,  # Bad Request
-            detail="model is required"
-        )
-    if provider is None:
-        raise HTTPException(
-            status_code=400,  # Bad Request
-            detail="provider is required"
-        )
-    if session_id is None:
-        raise HTTPException(
-            status_code=400,  # Bad Request
-            detail="session_id is required"
-        )
-    if len(messages) == 1:
-        # create new session
-        prompt = messages[0].get('content', '')
-        await db_service.create_chat_session(session_id, model, provider, (prompt[:200] if isinstance(prompt, str) else ''))
+    # data = await request.json()
+    # messages = data.get('messages')
+    # session_id = data.get('session_id')
+    # provider = data.get('provider')
+    # url = data.get('url')
+    # if provider == 'ollama' and not url.endswith('/v1'):
+    #     # openai compatible url
+    #     url = url.rstrip("/") + "/v1"
+    # model = data.get('model')
+    # if model is None:
+    #     raise HTTPException(
+    #         status_code=400,  # Bad Request
+    #         detail="model is required"
+    #     )
+    # if provider is None:
+    #     raise HTTPException(
+    #         status_code=400,  # Bad Request
+    #         detail="provider is required"
+    #     )
+    # if session_id is None:
+    #     raise HTTPException(
+    #         status_code=400,  # Bad Request
+    #         detail="session_id is required"
+    #     )
+    # if len(messages) == 1:
+    #     # create new session
+    #     prompt = messages[0].get('content', '')
+    #     await db_service.create_chat_session(session_id, model, provider, (prompt[:200] if isinstance(prompt, str) else ''))
     
-    await db_service.create_message(session_id, messages[-1].get('role', 'user'), json.dumps(messages[-1])) if len(messages) > 0 else None
-    # Create and store the chat task
-    async def chat_loop():
-        cur_messages = messages
+    # await db_service.create_message(session_id, messages[-1].get('role', 'user'), json.dumps(messages[-1])) if len(messages) > 0 else None
+    # # Create and store the chat task
+    # async def chat_loop():
+    #     cur_messages = messages
 
-        try:
-            if cur_messages[-1].get('role') == 'assistant' and cur_messages[-1].get('tool_calls') and \
-            cur_messages[-1]['tool_calls'][-1].get('function', {}).get('name') == 'finish':
-                print('👇finish!')
-                cur_messages.pop()
-                await send_to_websocket(session_id, {
-                    'type': 'all_messages', 
-                    'messages': cur_messages
-                })
+    #     try:
+    #         if cur_messages[-1].get('role') == 'assistant' and cur_messages[-1].get('tool_calls') and \
+    #         cur_messages[-1]['tool_calls'][-1].get('function', {}).get('name') == 'finish':
+    #             print('👇finish!')
+    #             cur_messages.pop()
+    #             await send_to_websocket(session_id, {
+    #                 'type': 'all_messages', 
+    #                 'messages': cur_messages
+    #             })
 
-            else:
-                cur_messages = await chat_openai(cur_messages, session_id, model, provider, url)
-        except Exception as e:
-            print(f"Error in chat_loop: {e}")
-            traceback.print_exc()
-            await send_to_websocket(session_id, {
-                'type': 'error',
-                'error': str(e)
-            })
+    #         else:
+    #             cur_messages = await chat_openai(cur_messages, session_id, model, provider, url)
+    #     except Exception as e:
+    #         print(f"Error in chat_loop: {e}")
+    #         traceback.print_exc()
+    #         await send_to_websocket(session_id, {
+    #             'type': 'error',
+    #             'error': str(e)
+    #         })
 
-        await send_to_websocket(session_id, {
-            'type': 'done'
-        })
+    #     await send_to_websocket(session_id, {
+    #         'type': 'done'
+    #     })
 
-    task = asyncio.create_task(chat_loop())
-    stream_tasks[session_id] = task
-    try:
-        await task
-    except asyncio.exceptions.CancelledError:
-        print(f"🛑Session {session_id} cancelled during stream")
-    finally:
-        stream_tasks.pop(session_id, None)
+    # task = asyncio.create_task(chat_loop())
+    # stream_tasks[session_id] = task
+    # try:
+    #     await task
+    # except asyncio.exceptions.CancelledError:
+    #     print(f"🛑Session {session_id} cancelled during stream")
+    # finally:
+    #     stream_tasks.pop(session_id, None)
+
+    # return {"status": "done"}
+    data = await request.json()
+    session_id = data.get("session_id")
+
+    # Simulate first chunk
+    await send_to_websocket(session_id, {
+        "type": "delta",
+        "text": "Here is a backend-"
+    })
+
+    # Simulate small delay between chunks (optional)
+    await asyncio.sleep(1)
+
+    # Simulate second chunk
+    await send_to_websocket(session_id, {
+        "type": "delta",
+        "text": "generated assistant reply."
+    })
+
+    # Mark the assistant message as complete
+    await send_to_websocket(session_id, {
+        "type": "done"
+    })
 
     return {"status": "done"}
 

@@ -77,9 +77,15 @@ function useDebounce<T extends (...args: any[]) => any>(
 export default function PostEditor({
   curPath,
   setCurPath,
+  editorContent,
+  setEditorContent,
+  setEditorContentWrapper,
 }: {
   curPath: string;
   setCurPath: (path: string) => void;
+  editorContent: string;
+  setEditorContent: (content: string) => void;
+  setEditorContentWrapper: (content: string) => void;
 }) {
   const HEADER_HEIGHT = 50;
   const { theme } = useTheme();
@@ -91,10 +97,17 @@ export default function PostEditor({
   const [isPostMode, setIsPostMode] = useState(false);
   const mdxEditorRef = useRef<MDXEditorMethods>(null);
   const [editorTitle, setEditorTitle] = useState("");
-  const [editorContent, setEditorContent] = useState("");
+  //const [editorContent, setEditorContent] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
 
+  useEffect(() => {
+    console.log("Received editorContent:", editorContent);
+    if (mdxEditorRef.current) {
+      mdxEditorRef.current.setMarkdown(editorContent);
+    }  
+  }, [editorContent]);
+  
   useEffect(() => {
     setIsLoading(true);
     fetch("/api/read_file", {
@@ -168,10 +181,10 @@ export default function PostEditor({
     debouncedRenameFile(title);
   };
 
-  const setEditorContentWrapper = (content: string) => {
-    setEditorContent(content);
-    debouncedUpdateFile(content);
-  };
+  // const setEditorContentWrapper = (content: string) => {
+  //   setEditorContent(content);
+  //   debouncedUpdateFile(content);
+  // };
 
   useEffect(() => {
     const toolbar = document.querySelector(".my-classname");

@@ -245,16 +245,16 @@ const ChatInterface = ({
       toast.error("Please approve/decline the previous AI suggestion first.");
       return;
     }
-    // if (!model) {
-    //   toast.error(
-    //     "Please select a model! Go to Settings to set your API keys if you haven't done so."
-    //   );
-    //   return;
-    // }
-    // if (!model.url || model.url == "") {
-    //   toast.error("Please set the model URL in Settings");
-    //   return;
-    // }
+    if (!model) {
+      toast.error(
+        "Please select a model! Go to Settings to set your API keys if you haven't done so."
+      );
+      return;
+    }
+    if (!model.url || model.url == "") {
+      toast.error("Please set the model URL in Settings");
+      return;
+    }
     if (!promptStr || promptStr == "") {
       return;
     }
@@ -281,9 +281,9 @@ const ChatInterface = ({
       body: JSON.stringify({
         messages: newMessages,
         session_id: sessionIdRef.current,
-        // model: model.model,
-        // provider: model.provider,
-        // url: model.url,
+        model: model.model,
+        provider: model.provider,
+        url: model.url,
       }),
     }).then((resp) => resp.json());
   };

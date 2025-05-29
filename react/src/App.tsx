@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import "./App.css";
 import { Button } from "./components/ui/button";
 import {
@@ -86,13 +86,21 @@ function Home() {
         </div>
       )}
       <div className="w-[60%] h-screen px-5">
-        {!!curPath && <PostEditor curPath={curPath} setCurPath={setCurPath} />}
+        {!!curPath && <
+          PostEditor 
+          curPath={curPath} 
+          setCurPath={setCurPath}
+          editorContent={editorContent}
+          setEditorContent={setEditorContent}
+          setEditorContentWrapper={setEditorContentWrapper}
+          />}
       </div>
       <div className="flex-1 flex-grow relative px-4  bg-sidebar">
         <ChatInterface
           sessionId={sessionId}
           editorTitle={editorTitle}
           editorContent={editorContent}
+          setEditorContentWrapper={setEditorContentWrapper}
           onClickNewChat={() => {
             setSessionId(nanoid());
           }}

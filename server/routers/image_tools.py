@@ -1,11 +1,11 @@
 import base64
 from fastapi.responses import FileResponse
 import requests
-from localmanus.services.config_service import app_config
+from services.config_service import app_config
 import traceback
 import time
-from localmanus.services.config_service import USER_DATA_DIR, FILES_DIR
-from localmanus.routers.websocket import send_to_websocket
+from services.config_service import USER_DATA_DIR, FILES_DIR
+from routers.websocket import send_to_websocket
 from PIL import Image
 from io import BytesIO
 import os
@@ -60,13 +60,12 @@ async def generate_image(args_json: dict, ctx: dict):
     prompt: str = args_json.get('prompt', '')
     aspect_ratio: str = args_json.get('aspect_ratio', '1:1')
     input_image: str = args_json.get('input_image', '')
-    api_key = app_config.get('replicate', {}).get('api_key', '')
+    
     if prompt == '':
         raise ValueError("Image generation failed: text prompt is required")
     if model == '':
         raise ValueError("Image generation failed: model is not selected")
-    if not api_key:
-        raise ValueError("Image generation failed: Replicate API key is not set")
+
     if input_image:
         # hardcode kontext model for image editing for now
         model = 'black-forest-labs/flux-kontext-pro'
@@ -79,6 +78,26 @@ async def generate_image(args_json: dict, ctx: dict):
         if not mime_type:
             mime_type = "image/png"  # default fallback
         input_image = f"data:{mime_type};base64,{b64}"
+    mime_type, width, height, filename = await generate_image_replicate(prompt, model, aspect_ratio, input_image)
+    await send_to_websocket(session_id, {
+        'type': 'image_generated',
+        'image_data': {
+            'mime_type': mime_type,
+            'url': f'/api/file/{filename}',
+            'width': width,
+            'height': height,
+        }
+    })
+    return [
+        {
+            'role': 'tool',
+            'content': f'Image generation successful: ![image filename: {filename}](/api/file/{filename})',
+        }
+    ]
+async def generate_image_replicate(prompt, model, aspect_ratio, input_image):
+    api_key = app_config.get('replicate', {}).get('api_key', '')
+    if not api_key:
+        raise ValueError("Image generation failed: Replicate API key is not set")
     url = f"https://api.replicate.com/v1/models/{model}/predictions"
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -109,21 +128,19 @@ async def generate_image(args_json: dict, ctx: dict):
     # get image dimensions
     mime_type, width, height, extension = await get_image_info_and_save(output, os.path.join(FILES_DIR, f'{image_id}'))
     filename = f'{image_id}.{extension}'
-    await send_to_websocket(session_id, {
-        'type': 'image_generated',
-        'image_data': {
-            'mime_type': mime_type,
-            'url': f'/api/file/{filename}',
-            'width': width,
-            'height': height,
-        }
-    })
-    return [
-        {
-            'role': 'tool',
-            'content': f'Image generation successful: ![image filename: {filename}]({output})',
-        }
-    ]
+    return mime_type, width, height, filename
+
+async def generate_image_huggingface(args_json: dict, ctx: dict):
+    from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
+    import torch
+
+    pipe_txt2img = AutoPipelineForText2Image.from_pretrained(
+        "dreamlike-art/dreamlike-photoreal-2.0", torch_dtype=torch.float16, use_safetensors=True
+    ).to("cuda")
+
+    prompt = "cinematic photo of Godzilla eating sushi with a cat in a izakaya, 35mm photograph, film, professional, 4k, highly detailed"
+    generator = torch.Generator(device="cpu").manual_seed(37)
+    image = pipe_txt2img(prompt, generator=generator).images[0]
 
 async def get_image_info_and_save(url, file_path_without_extension):
     # Fetch the image asynchronously

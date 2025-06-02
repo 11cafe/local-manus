@@ -11,13 +11,13 @@ from fastapi.responses import FileResponse
 import asyncio
 import aiohttp
 import requests
-from localmanus.services.agent_service import openai_client, anthropic_client, ollama_client
-from localmanus.services.mcp import MCPClient
-from localmanus.services.config_service import config_service, app_config, USER_DATA_DIR
+from services.agent_service import openai_client, anthropic_client, ollama_client
+from services.mcp import MCPClient
+from services.config_service import config_service, app_config, USER_DATA_DIR
 from starlette.websockets import WebSocketDisconnect
-from localmanus.services.db_service import db_service
-from localmanus.routers.image_tools import generate_image
-from localmanus.routers.websocket import active_websockets, send_to_websocket
+from services.db_service import db_service
+from routers.image_tools import generate_image
+from routers.websocket import active_websockets, send_to_websocket
 
 llm_config = config_service.get_config()
 
@@ -158,7 +158,7 @@ async def chat_openai(messages: list, session_id: str, text_model: dict, image_m
                         if line_str.startswith('data: {'):
                             line_str = line_str[6:]  # Remove "data: " prefix
                             chunk = json.loads(line_str) # Parse the JSON
-                            print('👇 chunk:', chunk)
+                            # print('👇 chunk:', chunk)
                             # Extract content from the choices array
                             if 'choices' in chunk and len(chunk['choices']) > 0:
                                 delta = chunk['choices'][0].get('delta', {})
@@ -374,6 +374,12 @@ async def chat(request: Request):
     session_id = data.get('session_id')
     text_model = data.get('text_model')
     image_model = data.get('image_model')
+    print('👇app_config.get("system_prompt", "")', app_config.get('system_prompt', ''))
+    if app_config.get('system_prompt', ''):
+        messages.append({
+            'role': 'system',
+            'content': app_config.get('system_prompt', '')
+        })
 
     if len(messages) == 1:
         # create new session
@@ -477,7 +483,7 @@ async def get_models():
         for model_name in models:
             if provider == 'ollama':
                 continue
-            if config[provider].get('api_key', '') == '':
+            if provider != 'huggingface' and config[provider].get('api_key', '') == '':
                 continue
             model = models[model_name]
             res.append({

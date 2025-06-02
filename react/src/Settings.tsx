@@ -17,7 +17,7 @@ type LLMConfig = {
   models: Record<string, { type?: "text" | "image" | "video" }>;
   url: string;
   api_key: string;
-  max_tokens: number;
+  max_tokens?: number;
 };
 
 const PROVIDER_NAME_MAPPING: { [key: string]: { name: string; icon: string } } =
@@ -34,6 +34,10 @@ const PROVIDER_NAME_MAPPING: { [key: string]: { name: string; icon: string } } =
     ollama: {
       name: "Ollama",
       icon: "https://images.seeklogo.com/logo-png/59/1/ollama-logo-png_seeklogo-593420.png",
+    },
+    huggingface: {
+      name: "Hugging Face",
+      icon: "https://huggingface.co/favicon.ico",
     },
   };
 const DEFAULT_CONFIG: { [key: string]: LLMConfig } = {
@@ -67,6 +71,13 @@ const DEFAULT_CONFIG: { [key: string]: LLMConfig } = {
     api_key: "",
     max_tokens: 8192,
   },
+  // huggingface: {
+  //   models: {
+  //     "dreamlike-art/dreamlike-photoreal-2.0": { type: "image" },
+  //   },
+  //   url: "https://api.replicate.com/v1/",
+  //   api_key: "",
+  // },
   ollama: {
     models: {},
     url: "http://localhost:11434",
@@ -215,29 +226,30 @@ export default function Settings() {
                   Your API key will be stored securely
                 </p>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor={`${key}-maxTokens`}>Max Tokens</Label>
-                <Input
-                  id={`${key}-maxTokens`}
-                  type="number"
-                  placeholder="Enter your max tokens"
-                  value={config[key]?.max_tokens ?? 8192}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      [key]: {
-                        ...config[key],
-                        max_tokens: parseInt(e.target.value),
-                      },
-                    })
-                  }
-                  className="w-full"
-                />
-                <p className="text-xs text-gray-500">
-                  The maximum number of tokens in the response
-                </p>
-              </div>
+              {key !== "replicate" && key !== "huggingface" && (
+                <div className="space-y-2">
+                  <Label htmlFor={`${key}-maxTokens`}>Max Tokens</Label>
+                  <Input
+                    id={`${key}-maxTokens`}
+                    type="number"
+                    placeholder="Enter your max tokens"
+                    value={config[key]?.max_tokens ?? 8192}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        [key]: {
+                          ...config[key],
+                          max_tokens: parseInt(e.target.value),
+                        },
+                      })
+                    }
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500">
+                    The maximum number of tokens in the response
+                  </p>
+                </div>
+              )}
               <p>
                 Models ({Object.keys(config[key]?.models ?? {}).length ?? 0})
               </p>

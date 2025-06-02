@@ -7,6 +7,11 @@ const os = require("os");
 
 // Create or append to a log file in the user's home directory
 const logPath = path.join(os.homedir(), "jaaz-log.txt");
+// Check if the log file exists and delete it
+if (fs.existsSync(logPath)) {
+  fs.unlinkSync(logPath);
+}
+
 const logStream = fs.createWriteStream(logPath, { flags: "a" });
 
 // Redirect all stdout and stderr to the log file

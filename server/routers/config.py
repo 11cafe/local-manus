@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request
-from localmanus.services.config_service import config_service
-from localmanus.services.agent_service import llm_reload_clients
+from services.config_service import config_service
+from services.agent_service import llm_reload_clients
 
 router = APIRouter(prefix="/api/config")
 

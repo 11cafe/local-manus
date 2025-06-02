@@ -3,7 +3,7 @@ import traceback
 import platform
 import subprocess
 from fastapi import APIRouter, Request
-from localmanus.services.config_service import USER_DATA_DIR
+from services.config_service import USER_DATA_DIR
 
 router = APIRouter(prefix="/api")
 

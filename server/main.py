@@ -4,7 +4,6 @@ import sys
 import io
 import argparse
 from contextlib import asynccontextmanager
-from localmanus.services.db_service import DatabaseService
 
 root_dir = os.path.dirname(__file__)
 
@@ -15,7 +14,7 @@ sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from localmanus.routers import config, agent, workspace, image_tools
+from routers import config, agent, workspace, image_tools
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

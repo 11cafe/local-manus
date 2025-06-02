@@ -3,7 +3,7 @@ import traceback
 import toml
 
 DEFAULT_CONFIG =  {}
-USER_DATA_DIR = os.getenv("USER_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "user_data"))
+USER_DATA_DIR = os.getenv("USER_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "user_data"))
 FILES_DIR = os.path.join(USER_DATA_DIR, "files")
 
 app_config = {}

@@ -4,8 +4,7 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import aiosqlite
-
-USER_DATA_DIR = os.getenv("USER_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "user_data"))
+from .config_service import USER_DATA_DIR
 DB_PATH = os.path.join(USER_DATA_DIR, "localmanus.db")
 
 # Database version

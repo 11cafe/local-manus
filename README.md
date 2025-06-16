@@ -2,10 +2,6 @@
 
 Meet **Jaaz**, your all-in-one AI-powered marketing assistant. A fully **local** **desktop app** that runs for **free** — no cloud lock-in, no monthly fees. Think of it as the "Cursor" for marketers and content creators: an always-on team that helps you 10x your productivity and supercharge product growth 📈
 
-****
-
- 🚀 **Currently in Early Beta**
- Interested in early access? **Join our waitlist: [https://tally.so/r/nPgeKQ](https://tally.so/r/nPgeKQ) now** and we’ll reach out with a demo invite! Your feedback will help shape Jaaz and accelerate its public launch.
 
 ---
 
